@@ -13,8 +13,12 @@ The agent never directly modifies the Board. It returns a chosen Move and
 the battle loop applies it.
 """
 
+import random
 from board import Board
 from solver import Solver, Move
+
+# Cap on candidates evaluated per turn in battle mode — bounds CSP calls
+MAX_BATTLE_CANDIDATES = 5
 
 
 class Agent:
@@ -57,7 +61,55 @@ class Agent:
         Returns:
             A single Move tuple (row, col, action).
         """
-        pass
+        if self.strategy == "random":
+            covered = board.get_covered_cells()
+            if covered:
+                r, c = random.choice(covered)
+                return (r, c, "reveal")
+            # Fallback: nothing covered, let solver handle it
+            return Solver(board).get_moves()[0]
+
+        solver = Solver(board)
+
+        if self.strategy == "tier1":
+            candidates = solver.tier1()
+            if not candidates:
+                # Tier 1 only — fall back to a random covered cell rather
+                # than running CSP, since strategy intentionally limits depth
+                covered = board.get_covered_cells()
+                if covered:
+                    r, c = random.choice(covered)
+                    return (r, c, "reveal")
+                candidates = solver.tier3()
+        else:
+            # Full CSP strategy
+            candidates = solver.get_moves()
+
+        # Solo mode — just return the first candidate
+        if not battle_mode:
+            return candidates[0]
+
+        # Battle mode — skip evaluation if only one option
+        if len(candidates) == 1:
+            return candidates[0]
+
+        # Evaluate at most MAX_BATTLE_CANDIDATES to bound CSP calls per turn
+        if len(candidates) > MAX_BATTLE_CANDIDATES:
+            candidates = candidates[:MAX_BATTLE_CANDIDATES]
+
+        # Score every candidate and pick the best
+        best_move = None
+        best_score = float("-inf")
+        scores = {}
+
+        for move in candidates:
+            s = self.evaluate_move(board, move, opponent_score)
+            scores[move] = s
+            if s > best_score:
+                best_score = s
+                best_move = move
+
+        return best_move
 
     # ------------------------------------------------------------------
     # Battle mode — adversarial evaluation
@@ -85,7 +137,26 @@ class Agent:
         Returns:
             Float score — higher is better for this agent.
         """
-        pass
+        row, col, action = move
+
+        # Simulate the move on a copy
+        sim = board.copy()
+
+        if action == "flag":
+            sim.flag(row, col)
+            # Flagging a confirmed mine: immediate +1 point + extra-turn advantage
+            immediate = 2.0
+        else:
+            result = sim.reveal(row, col)
+            if result == "mine":
+                immediate = -1.0
+            else:
+                immediate = 0.0
+
+        ambiguity = self._count_opponent_ambiguity(sim)
+        mine_risk  = self._opponent_mine_risk(sim)
+
+        return immediate + ambiguity * 0.5 + mine_risk * 1.5
 
     def _count_opponent_ambiguity(self, simulated_board: Board) -> int:
         """
@@ -99,7 +170,19 @@ class Agent:
         Returns:
             Integer count of non-deterministic frontier cells.
         """
-        pass
+        solver = Solver(simulated_board)
+        certain_moves = solver.tier1()
+
+        # Certain cells are those Tier 1 can resolve; everything else on the
+        # frontier is ambiguous from the opponent's perspective.
+        certain_cells = {(r, c) for r, c, _ in certain_moves}
+
+        frontier_cells = set()
+        for r, c in simulated_board.get_revealed_border():
+            for cell in simulated_board.get_covered_neighbors(r, c):
+                frontier_cells.add(cell)
+
+        return len(frontier_cells - certain_cells)
 
     def _opponent_mine_risk(self, simulated_board: Board) -> float:
         """
@@ -112,7 +195,21 @@ class Agent:
         Returns:
             Float probability 0.0–1.0.
         """
-        pass
+        # If there are no covered cells the game is effectively over
+        covered = simulated_board.get_covered_cells()
+        if not covered:
+            return 0.0
+
+        # Use the global baseline (remaining_mines / remaining_covered) instead
+        # of running a full CSP on the simulated board — cheap and good enough
+        # for an adversarial heuristic that is already an approximation.
+        remaining = simulated_board.remaining_mines()
+        if remaining <= 0:
+            return 0.0
+
+        # The opponent will pick the cell with the lowest mine probability.
+        # That minimum probability IS their chance of hitting a mine.
+        return remaining / len(covered)
 
     # ------------------------------------------------------------------
     # Scoring
@@ -127,7 +224,12 @@ class Agent:
                     "reveal" — safe cell revealed (no point change)
                     "mine"  — hit a mine (-1 point, turn ends)
         """
-        pass
+        self.moves_made += 1
+        if result == "flag":
+            self.score += 1
+        elif result == "mine":
+            self.score -= 1
+            self.mines_hit += 1
 
     def __repr__(self) -> str:
         return f"Agent {self.agent_id} | Score: {self.score} | Hits: {self.mines_hit} | Moves: {self.moves_made}"

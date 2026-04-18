@@ -12,11 +12,16 @@ The solver is stateless — it takes a Board and returns moves.
 It never modifies the Board directly.
 """
 
+from collections import defaultdict
 from board import Board
 
 
 # Type alias for clarity
 Move = tuple[int, int, str]  # (row, col, "reveal" | "flag")
+
+# Backtracking performance caps
+MAX_SOLUTIONS = 200       # stop collecting solutions after this many
+MAX_COMPONENT_SIZE = 20   # skip Tier 2 for components larger than this
 
 
 class Solver:
@@ -41,7 +46,13 @@ class Solver:
             List of Move tuples. May be multiple (all safe flags/reveals
             found). Never empty — Tier 3 always provides a fallback.
         """
-        pass
+        moves = self.tier1()
+        if moves:
+            return moves
+        moves = self.tier2()
+        if moves:
+            return moves
+        return self.tier3()
 
     # ------------------------------------------------------------------
     # Tier 1 — Deterministic single-cell rules
@@ -58,7 +69,29 @@ class Solver:
         Returns:
             List of moves if any found, else empty list.
         """
-        pass
+        moves = []
+        seen = set()  # deduplicate: a cell can border multiple revealed cells
+
+        for r, c in self.board.get_revealed_border():
+            n = int(self.board.visible[r, c])
+            flagged = self.board.get_flagged_neighbors(r, c)
+            covered = self.board.get_covered_neighbors(r, c)
+
+            if n == len(flagged):
+                # All mines accounted for — every covered neighbor is safe
+                for cell in covered:
+                    if cell not in seen:
+                        seen.add(cell)
+                        moves.append((cell[0], cell[1], "reveal"))
+
+            elif n == len(covered) + len(flagged):
+                # Every covered neighbor must be a mine
+                for cell in covered:
+                    if cell not in seen:
+                        seen.add(cell)
+                        moves.append((cell[0], cell[1], "flag"))
+
+        return moves
 
     # ------------------------------------------------------------------
     # Tier 2 — CSP with backtracking search
@@ -81,7 +114,39 @@ class Solver:
         Returns:
             List of moves if any certain moves found, else empty list.
         """
-        pass
+        constraints = self._build_constraints()
+        if not constraints:
+            return []
+
+        components = self._get_connected_components(constraints)
+        moves = []
+        seen = set()
+
+        for component in components:
+            variables = list({cell for c in component for cell in c["cells"]})
+            if not variables:
+                continue
+
+            if len(variables) > MAX_COMPONENT_SIZE:
+                continue  # too large — let Tier 3 handle probabilistically
+
+            solutions = []
+            self._backtrack(component, variables, {}, solutions)
+
+            if not solutions:
+                continue
+
+            num_solutions = len(solutions)
+            for cell in variables:
+                mine_count = sum(sol[cell] for sol in solutions)
+                if mine_count == 0 and cell not in seen:
+                    seen.add(cell)
+                    moves.append((cell[0], cell[1], "reveal"))
+                elif mine_count == num_solutions and cell not in seen:
+                    seen.add(cell)
+                    moves.append((cell[0], cell[1], "flag"))
+
+        return moves
 
     def _build_constraints(self) -> list[dict]:
         """
@@ -96,7 +161,24 @@ class Solver:
         Returns:
             List of constraint dicts.
         """
-        pass
+        constraints = []
+        seen_cells = set()  # deduplicate constraints with identical cell sets
+
+        for r, c in self.board.get_revealed_border():
+            n = int(self.board.visible[r, c])
+            flagged = self.board.get_flagged_neighbors(r, c)
+            covered = self.board.get_covered_neighbors(r, c)
+
+            cells = frozenset(covered)
+            mine_count = n - len(flagged)
+
+            if not cells or cells in seen_cells:
+                continue
+            seen_cells.add(cells)
+
+            constraints.append({"cells": cells, "count": mine_count})
+
+        return constraints
 
     def _get_connected_components(self, constraints: list[dict]) -> list[list[dict]]:
         """
@@ -110,7 +192,39 @@ class Solver:
         Returns:
             List of constraint groups (each group is a list of constraints).
         """
-        pass
+        n = len(constraints)
+        if n == 0:
+            return []
+
+        # Map each cell to the constraint indices that reference it
+        cell_to_indices = defaultdict(list)
+        for i, c in enumerate(constraints):
+            for cell in c["cells"]:
+                cell_to_indices[cell].append(i)
+
+        # Union-Find over constraint indices
+        parent = list(range(n))
+
+        def find(x):
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]  # path compression
+                x = parent[x]
+            return x
+
+        def union(x, y):
+            px, py = find(x), find(y)
+            if px != py:
+                parent[px] = py
+
+        for indices in cell_to_indices.values():
+            for i in range(1, len(indices)):
+                union(indices[0], indices[i])
+
+        groups = defaultdict(list)
+        for i in range(n):
+            groups[find(i)].append(constraints[i])
+
+        return list(groups.values())
 
     def _backtrack(self, constraints: list[dict], variables: list, assignment: dict, solutions: list):
         """
@@ -123,7 +237,25 @@ class Solver:
             assignment: current partial assignment {(row,col): 0 or 1}
             solutions: accumulator list — each valid complete assignment appended here
         """
-        pass
+        if len(solutions) >= MAX_SOLUTIONS:
+            return
+
+        if not variables:
+            # All assigned — verify every constraint is exactly met
+            for c in constraints:
+                if sum(assignment[cell] for cell in c["cells"]) != c["count"]:
+                    return
+            solutions.append(dict(assignment))
+            return
+
+        var = variables[0]
+        rest = variables[1:]
+
+        for val in (0, 1):
+            assignment[var] = val
+            if self._is_consistent(constraints, assignment):
+                self._backtrack(constraints, rest, assignment, solutions)
+            del assignment[var]
 
     def _is_consistent(self, constraints: list[dict], assignment: dict) -> bool:
         """
@@ -139,7 +271,18 @@ class Solver:
         Returns:
             True if consistent, False if violated.
         """
-        pass
+        for c in constraints:
+            assigned_mines = sum(
+                assignment[cell] for cell in c["cells"] if cell in assignment
+            )
+            unassigned = sum(1 for cell in c["cells"] if cell not in assignment)
+
+            if assigned_mines > c["count"]:
+                return False
+            if assigned_mines + unassigned < c["count"]:
+                return False
+
+        return True
 
     # ------------------------------------------------------------------
     # Tier 3 — Probabilistic guessing
@@ -158,7 +301,9 @@ class Solver:
         Returns:
             List containing exactly one Move (the best guess).
         """
-        pass
+        probs = self._estimate_probabilities()
+        best_cell = min(probs, key=lambda cell: probs[cell])
+        return [(best_cell[0], best_cell[1], "reveal")]
 
     def _estimate_probabilities(self) -> dict[tuple[int, int], float]:
         """
@@ -169,4 +314,40 @@ class Solver:
             Dict mapping (row, col) → float probability of being a mine.
             Covers all covered, unflagged cells.
         """
-        pass
+        covered_cells = self.board.get_covered_cells()
+        if not covered_cells:
+            return {}
+
+        remaining = self.board.remaining_mines()
+        total_covered = len(covered_cells)
+        baseline = remaining / total_covered if total_covered > 0 else 0.5
+
+        probs = {}
+
+        # Compute per-cell mine frequency for frontier cells via CSP
+        constraints = self._build_constraints()
+        if constraints:
+            components = self._get_connected_components(constraints)
+            for component in components:
+                variables = list({cell for c in component for cell in c["cells"]})
+                if not variables:
+                    continue
+
+                solutions = []
+                self._backtrack(component, variables, {}, solutions)
+
+                if solutions:
+                    num_solutions = len(solutions)
+                    for cell in variables:
+                        mine_count = sum(sol[cell] for sol in solutions)
+                        probs[cell] = mine_count / num_solutions
+                else:
+                    for cell in variables:
+                        probs[cell] = baseline
+
+        # Assign baseline probability to non-frontier covered cells
+        for cell in covered_cells:
+            if cell not in probs:
+                probs[cell] = baseline
+
+        return probs
