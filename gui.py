@@ -287,7 +287,7 @@ class MenuScreen:
         ))
 
         # Keyboard hint
-        hint = self.font.render("Enter to start  ·  Q to quit", True, (60, 60, 80))
+        hint = self.font.render("Enter to start  |  Q to quit", True, (60, 60, 80))
         self.screen.blit(hint, (MENU_W // 2 - hint.get_width() // 2, MENU_H - 22))
 
         pygame.display.flip()
@@ -590,14 +590,14 @@ class GUI:
             r, c = ev.get("row", 0), ev.get("col", 0)
             et = ev.get("type", "")
             if et == "flag":
-                msg = f"Agent {aid} flagged ({r},{c})  →  +1 point, extra turn!"
+                msg = f"Agent {aid} flagged ({r},{c})  ->  +1 point, extra turn!"
             elif et == "mine_hit":
-                msg = f"Agent {aid} hit a mine at ({r},{c})  →  -1 point"
+                msg = f"Agent {aid} hit a mine at ({r},{c})  ->  -1 point"
             elif et == "reveal":
-                msg = f"Agent {aid} revealed ({r},{c})  →  turn ends"
+                msg = f"Agent {aid} revealed ({r},{c})  ->  turn ends"
             elif et == "game_over":
-                msg = (f"GAME OVER  —  Agent {self.winner.agent_id} wins!"
-                       if self.winner else "GAME OVER  —  It's a TIE!")
+                msg = (f"GAME OVER  -  Agent {self.winner.agent_id} wins!"
+                       if self.winner else "GAME OVER  -  It's a TIE!")
             else:
                 msg = ""
 

@@ -49,9 +49,9 @@ class Agent:
             Delegates directly to solver.get_moves() and returns the first move.
 
         In battle mode (battle_mode=True):
-            Gets candidate moves from solver, then runs evaluate_move() on
-            each to pick the one that maximizes own advantage and minimizes
-            opponent's next-turn options.
+            Gets candidate moves from solver, then runs Minimax with Alpha-Beta
+            pruning to pick the move that maximizes own advantage while minimizing
+            the opponent's best response.
 
         Args:
             board: current game state (read-only)
@@ -66,7 +66,6 @@ class Agent:
             if covered:
                 r, c = random.choice(covered)
                 return (r, c, "reveal")
-            # Fallback: nothing covered, let solver handle it
             return Solver(board).get_moves()[0]
 
         solver = Solver(board)
@@ -74,89 +73,134 @@ class Agent:
         if self.strategy == "tier1":
             candidates = solver.tier1()
             if not candidates:
-                # Tier 1 only — fall back to a random covered cell rather
-                # than running CSP, since strategy intentionally limits depth
                 covered = board.get_covered_cells()
                 if covered:
                     r, c = random.choice(covered)
                     return (r, c, "reveal")
                 candidates = solver.tier3()
         else:
-            # Full CSP strategy
             candidates = solver.get_moves()
 
-        # Solo mode — just return the first candidate
-        if not battle_mode:
+        if not battle_mode or len(candidates) == 1:
             return candidates[0]
 
-        # Battle mode — skip evaluation if only one option
-        if len(candidates) == 1:
-            return candidates[0]
-
-        # Evaluate at most MAX_BATTLE_CANDIDATES to bound CSP calls per turn
         if len(candidates) > MAX_BATTLE_CANDIDATES:
             candidates = candidates[:MAX_BATTLE_CANDIDATES]
 
-        # Score every candidate and pick the best
+        # ------------------------------------------------------------------
+        # Root of Minimax with Alpha-Beta Pruning
+        # ------------------------------------------------------------------
         best_move = None
         best_score = float("-inf")
-        scores = {}
+        alpha = float("-inf")
+        beta = float("inf")
 
         for move in candidates:
-            s = self.evaluate_move(board, move, opponent_score)
-            scores[move] = s
-            if s > best_score:
-                best_score = s
+            sim = board.copy()
+            r, c, action = move
+            my_score = self.score
+            extra_turn = False
+
+            if action == "flag":
+                sim.flag(r, c)
+                my_score += 1
+                extra_turn = True
+            else:
+                if sim.reveal(r, c) == "mine":
+                    my_score -= 1
+
+            # If we flag a mine, we get an extra turn, so we maximize again.
+            # Otherwise, hand off to opponent (minimize).
+            score = self._alphabeta(
+                sim,
+                depth=2,
+                alpha=alpha,
+                beta=beta,
+                maximizing_player=extra_turn,
+                my_score=my_score,
+                op_score=opponent_score,
+            )
+
+            if score > best_score:
+                best_score = score
                 best_move = move
 
-        return best_move
+            alpha = max(alpha, best_score)
+
+        return best_move if best_move else candidates[0]
 
     # ------------------------------------------------------------------
-    # Battle mode — adversarial evaluation
+    # Battle mode — Minimax with Alpha-Beta Pruning
     # ------------------------------------------------------------------
 
-    def evaluate_move(self, board: Board, move: Move, opponent_score: int) -> float:
+    def _alphabeta(self, board: Board, depth: int, alpha: float, beta: float,
+                   maximizing_player: bool, my_score: int, op_score: int) -> float:
         """
-        Score a candidate move from an adversarial perspective.
-
-        Heuristic considers:
-          (a) Immediate score delta for this agent (flagging a mine = +1 point
-              and extra turn, revealing safe = 0, hitting mine = -1)
-          (b) Number of non-deterministic cells the opponent will face after
-              this move is applied — more ambiguity for opponent is better
-          (c) Probability that the opponent's best available next move
-              results in hitting a mine
-
-        Uses board.copy() to simulate the move without mutating real state.
-
-        Args:
-            board: current board state
-            move: candidate move to evaluate
-            opponent_score: opponent's current score
-
-        Returns:
-            Float score — higher is better for this agent.
+        Minimax search tree with Alpha-Beta pruning.
+        Explores future game states by simulating candidate moves generated by the CSP solver.
         """
-        row, col, action = move
+        if depth == 0 or board.game_over:
+            return self._static_eval(board, my_score, op_score)
 
-        # Simulate the move on a copy
-        sim = board.copy()
+        solver = Solver(board)
+        candidates = solver.get_moves()[:MAX_BATTLE_CANDIDATES]
 
-        if action == "flag":
-            sim.flag(row, col)
-            # Flagging a confirmed mine: immediate +1 point + extra-turn advantage
-            immediate = 2.0
+        if not candidates:
+            return self._static_eval(board, my_score, op_score)
+
+        if maximizing_player:
+            max_eval = float("-inf")
+            for move in candidates:
+                sim = board.copy()
+                r, c, action = move
+                next_score = my_score
+                extra_turn = False
+
+                if action == "flag":
+                    sim.flag(r, c)
+                    next_score += 1
+                    extra_turn = True
+                else:
+                    if sim.reveal(r, c) == "mine":
+                        next_score -= 1
+
+                eval_score = self._alphabeta(sim, depth - 1, alpha, beta, extra_turn, next_score, op_score)
+                max_eval = max(max_eval, eval_score)
+                alpha = max(alpha, eval_score)
+                if beta <= alpha:
+                    break  # Beta cut-off
+            return max_eval
+
         else:
-            result = sim.reveal(row, col)
-            if result == "mine":
-                immediate = -1.0
-            else:
-                immediate = 0.0
+            min_eval = float("inf")
+            for move in candidates:
+                sim = board.copy()
+                r, c, action = move
+                next_op_score = op_score
+                extra_turn = False
 
-        ambiguity = self._count_opponent_ambiguity(sim)
-        mine_risk  = self._opponent_mine_risk(sim)
+                if action == "flag":
+                    sim.flag(r, c)
+                    next_op_score += 1
+                    extra_turn = True
+                else:
+                    if sim.reveal(r, c) == "mine":
+                        next_op_score -= 1
 
-        return immediate + ambiguity * 0.5 + mine_risk * 1.5
+                # If opponent gets an extra turn, they maximize again (so we stay in minimize mode).
+                eval_score = self._alphabeta(sim, depth - 1, alpha, beta, not extra_turn, my_score, next_op_score)
+                min_eval = min(min_eval, eval_score)
+                beta = min(beta, eval_score)
+                if beta <= alpha:
+                    break  # Alpha cut-off
+            return min_eval
+
+    def _static_eval(self, board: Board, my_score: int, op_score: int) -> float:
+        """Leaf node evaluation for Minimax."""
+        score_diff = (my_score - op_score) * 10.0
+        ambiguity = self._count_opponent_ambiguity(board) * 0.5
+        mine_risk = self._opponent_mine_risk(board) * 1.5
+        return score_diff + ambiguity + mine_risk
 
     def _count_opponent_ambiguity(self, simulated_board: Board) -> int:
         """

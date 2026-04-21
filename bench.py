@@ -20,11 +20,11 @@ def run_matchup(n: int, strategy1: str, strategy2: str, difficulty: str = "inter
 
     label = f"{strategy1} vs {strategy2}"
     print(f"\n{'='*56}")
-    print(f"  {label}  ·  {n} games  ·  {difficulty}")
-    print(f"{'─'*56}")
+    print(f"  {label}  |  {n} games  |  {difficulty}")
+    print(f"{'-'*56}")
     print(f"  {'#':>4}  {'winner':<8}  {'s1':>4}  {'s2':>4}  "
           f"{'diff':>5}  {'hits1':>5}  {'hits2':>5}  {'turns':>5}")
-    print(f"{'─'*56}")
+    print(f"{'-'*56}")
 
     for i in range(n):
         board = Board(cfg["rows"], cfg["cols"], cfg["mines"])
@@ -77,15 +77,15 @@ def print_summary(r: dict, elapsed: float):
     n1, n2 = r["matchup"].split(" vs ")
     w = 56
     print(f"\n  Summary")
-    print(f"{'─'*w}")
+    print(f"{'-'*w}")
     print(f"  {n1:8s} win rate     {r['win_rate_1_pct']:>6.1f}%")
     print(f"  {n2:8s} win rate     {r['win_rate_2_pct']:>6.1f}%")
     print(f"  Tie rate             {r['tie_rate_pct']:>6.1f}%")
-    print(f"{'─'*w}")
+    print(f"{'-'*w}")
     print(f"  Avg score  {n1:8s}  {r['avg_score_1']:>+7.2f}")
     print(f"  Avg score  {n2:8s}  {r['avg_score_2']:>+7.2f}")
-    print(f"  Avg differential     {r['avg_score_differential']:>+7.2f}  ({n1} − {n2})")
-    print(f"{'─'*w}")
+    print(f"  Avg differential     {r['avg_score_differential']:>+7.2f}  ({n1} - {n2})")
+    print(f"{'-'*w}")
     print(f"  Avg mines hit {n1:5s}  {r['avg_mines_hit_1']:>7.2f}")
     print(f"  Avg mines hit {n2:5s}  {r['avg_mines_hit_2']:>7.2f}")
     print(f"  Avg turns/game       {r['avg_turns']:>7.1f}")
@@ -125,4 +125,4 @@ if __name__ == "__main__":
     out = "bench_results.json"
     with open(out, "w") as fh:
         json.dump(all_results, fh, indent=2)
-    print(f"\nSaved → {out}")
+    print(f"\nSaved -> {out}")

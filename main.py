@@ -124,11 +124,11 @@ def run_headless(args):
     n = args.games
 
     print(f"Headless: {args.agent1} vs {args.agent2}  "
-          f"· {n} games · {args.difficulty}")
-    print(f"{'─'*58}")
+          f"| {n} games | {args.difficulty}")
+    print(f"{'-'*58}")
     print(f"  {'#':>4}  {'winner':<9} {'s1':>4}  {'s2':>4}  "
           f"{'diff':>5}  {'hits1':>5}  {'hits2':>5}  {'turns':>5}")
-    print(f"{'─'*58}")
+    print(f"{'-'*58}")
 
     results = []
     for i in range(n):
@@ -148,7 +148,7 @@ def run_headless(args):
             flush=True,
         )
 
-    print(f"{'─'*58}")
+    print(f"{'-'*58}")
     print_stats_summary(results)
 
     if args.out:
@@ -161,7 +161,7 @@ def run_headless(args):
         }
         with open(args.out, "w") as fh:
             json.dump(payload, fh, indent=2)
-        print(f"\nSaved → {args.out}")
+        print(f"\nSaved -> {args.out}")
 
 
 def print_stats_summary(results: list[dict]):
@@ -177,7 +177,7 @@ def print_stats_summary(results: list[dict]):
     print(f"  tie rate            {s['tie_rate_pct']:>6.1f}%")
     print(f"  avg score agent1    {s['avg_score_1']:>+7.2f}")
     print(f"  avg score agent2    {s['avg_score_2']:>+7.2f}")
-    print(f"  avg differential    {s['avg_score_differential']:>+7.2f}  (agent1 − agent2)")
+    print(f"  avg differential    {s['avg_score_differential']:>+7.2f}  (agent1 - agent2)")
     print(f"  avg mines hit a1    {s['avg_mines_hit_1']:>7.2f}")
     print(f"  avg mines hit a2    {s['avg_mines_hit_2']:>7.2f}")
     print(f"  avg turns/game      {s['avg_turns']:>7.1f}")

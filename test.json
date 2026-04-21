@@ -1,70 +1,70 @@
 {
-  "matchup": "csp vs tier1",
+  "matchup": "csp vs csp",
   "difficulty": "intermediate",
   "games": 5,
   "results": [
     {
-      "winner": 2,
-      "score1": 19,
-      "score2": 21,
-      "turns": 102,
-      "mines_hit1": 0,
-      "mines_hit2": 0,
-      "moves1": 70,
-      "moves2": 72
-    },
-    {
       "winner": 1,
       "score1": 24,
       "score2": 16,
-      "turns": 92,
+      "turns": 70,
       "mines_hit1": 0,
       "mines_hit2": 0,
-      "moves1": 70,
-      "moves2": 62
+      "moves1": 59,
+      "moves2": 51
     },
     {
-      "winner": null,
-      "score1": 20,
-      "score2": 20,
-      "turns": 101,
+      "winner": 2,
+      "score1": 19,
+      "score2": 21,
+      "turns": 94,
       "mines_hit1": 0,
       "mines_hit2": 0,
-      "moves1": 71,
-      "moves2": 70
+      "moves1": 66,
+      "moves2": 68
+    },
+    {
+      "winner": 2,
+      "score1": 18,
+      "score2": 22,
+      "turns": 82,
+      "mines_hit1": 0,
+      "mines_hit2": 0,
+      "moves1": 59,
+      "moves2": 63
+    },
+    {
+      "winner": 2,
+      "score1": 17,
+      "score2": 22,
+      "turns": 86,
+      "mines_hit1": 0,
+      "mines_hit2": 0,
+      "moves1": 61,
+      "moves2": 65
     },
     {
       "winner": 1,
-      "score1": 21,
-      "score2": 17,
-      "turns": 54,
-      "mines_hit1": 1,
-      "mines_hit2": 0,
-      "moves1": 50,
-      "moves2": 44
-    },
-    {
-      "winner": 1,
-      "score1": 5,
-      "score2": 2,
-      "turns": 11,
+      "score1": 26,
+      "score2": 13,
+      "turns": 75,
       "mines_hit1": 0,
-      "mines_hit2": 1,
-      "moves1": 11,
-      "moves2": 9
+      "mines_hit2": 0,
+      "moves1": 64,
+      "moves2": 51
     }
   ],
   "summary": {
-    "matchup": "csp vs tier1",
+    "matchup": "csp vs csp",
     "games": 5,
-    "win_rate_1_pct": 60.0,
-    "win_rate_2_pct": 20.0,
-    "tie_rate_pct": 20.0,
-    "avg_score_1": 17.8,
-    "avg_score_2": 15.2,
-    "avg_score_differential": 2.6,
-    "avg_mines_hit_1": 0.2,
-    "avg_mines_hit_2": 0.2,
-    "avg_turns": 72.0
+    "win_rate_1_pct": 40.0,
+    "win_rate_2_pct": 60.0,
+    "tie_rate_pct": 0.0,
+    "avg_score_1": 20.8,
+    "avg_score_2": 18.8,
+    "avg_score_differential": 2.0,
+    "avg_mines_hit_1": 0.0,
+    "avg_mines_hit_2": 0.0,
+    "avg_turns": 81.4
   }
 }
