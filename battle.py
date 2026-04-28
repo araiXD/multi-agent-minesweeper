@@ -275,4 +275,8 @@ class BattleGame:
             "mines_hit2": self.agents[1].mines_hit,
             "moves1":     self.agents[0].moves_made,
             "moves2":     self.agents[1].moves_made,
+            "flags1":     self.agents[0].flags,
+            "flags2":     self.agents[1].flags,
+            "reveals1":   self.agents[0].reveals,
+            "reveals2":   self.agents[1].reveals,
         }

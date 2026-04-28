@@ -36,6 +36,8 @@ class Agent:
         self.score = 0
         self.mines_hit = 0
         self.moves_made = 0
+        self.flags = 0
+        self.reveals = 0
 
     # ------------------------------------------------------------------
     # Main entry point
@@ -271,9 +273,12 @@ class Agent:
         self.moves_made += 1
         if result == "flag":
             self.score += 1
+            self.flags += 1
         elif result == "mine":
             self.score -= 1
             self.mines_hit += 1
+        elif result == "reveal":
+            self.reveals += 1
 
     def __repr__(self) -> str:
         return f"Agent {self.agent_id} | Score: {self.score} | Hits: {self.mines_hit} | Moves: {self.moves_made}"
