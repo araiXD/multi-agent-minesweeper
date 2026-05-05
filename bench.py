@@ -93,36 +93,103 @@ def print_summary(r: dict, elapsed: float):
     print(f"{'='*w}")
 
 
+def print_difficulty_comparison(all_results: list[dict]):
+    """
+    Cross-difficulty comparison table for CSP vs Tier1.
+    Matches on matchup name; falls back to treating unlabelled intermediate
+    entries (from the original bench run) as intermediate.
+    """
+    ct = {}
+    for r in all_results:
+        if r.get("matchup") == "csp vs tier1":
+            diff = r.get("difficulty", "intermediate")
+            if diff not in ct:   # first match wins (most recent runs overwrite if re-run)
+                ct[diff] = r
+
+    diffs = ["beginner", "intermediate", "expert"]
+    w = 62
+
+    print(f"\n{'='*w}")
+    print(f"  CSP vs Tier1  -  Cross-Difficulty Comparison")
+    print(f"{'-'*w}")
+    print(f"  {'Metric':<22} | {'Beginner':>9} | {'Intermediate':>12} | {'Expert':>8}")
+    print(f"{'-'*w}")
+
+    def val(diff, key, fmt):
+        r = ct.get(diff)
+        if r is None or key not in r:
+            return "N/A"
+        return fmt.format(r[key])
+
+    rows = [
+        ("Win Rate (CSP %)",    "win_rate_1_pct",         "{:.1f}%"),
+        ("Win Rate (Tier1 %)",  "win_rate_2_pct",         "{:.1f}%"),
+        ("Avg Differential",    "avg_score_differential", "{:+.2f}"),
+        ("Avg Mine Hits CSP",   "avg_mines_hit_1",        "{:.2f}"),
+        ("Avg Mine Hits Tier1", "avg_mines_hit_2",        "{:.2f}"),
+        ("Avg Turns",           "avg_turns",              "{:.1f}"),
+    ]
+
+    for label, key, fmt in rows:
+        b  = val("beginner",     key, fmt)
+        im = val("intermediate", key, fmt)
+        ex = val("expert",       key, fmt)
+        print(f"  {label:<22} | {b:>9} | {im:>12} | {ex:>8}")
+
+    print(f"{'='*w}")
+
+
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--games", type=int, default=20,
-                        help="games per matchup (default 20)")
+    parser.add_argument("--games", type=int, default=50,
+                        help="games per matchup (default 50)")
     args = parser.parse_args()
 
     N = args.games
-    all_results = []
-
-    # ---- CSP vs tier1 ----
-    t0 = time.time()
-    raw_ct = run_matchup(N, "csp", "tier1")
-    elapsed_ct = time.time() - t0
-    r_ct = summarize(raw_ct, "csp", "tier1")
-    r_ct["elapsed_s"] = round(elapsed_ct, 1)
-    print_summary(r_ct, elapsed_ct)
-    all_results.append(r_ct)
-
-    # ---- CSP vs random ----
-    t1 = time.time()
-    raw_cr = run_matchup(N, "csp", "random")
-    elapsed_cr = time.time() - t1
-    r_cr = summarize(raw_cr, "csp", "random")
-    r_cr["elapsed_s"] = round(elapsed_cr, 1)
-    print_summary(r_cr, elapsed_cr)
-    all_results.append(r_cr)
-
     out = "bench_results.json"
+
+    # Load existing results so we append rather than overwrite
+    try:
+        with open(out) as fh:
+            all_results = json.load(fh)
+        print(f"Loaded {len(all_results)} existing result(s) from {out}")
+    except FileNotFoundError:
+        all_results = []
+
+    # ---- CSP vs Tier1, Beginner ----
+    t0 = time.time()
+    raw = run_matchup(N, "csp", "tier1", "beginner")
+    elapsed = time.time() - t0
+    r = summarize(raw, "csp", "tier1")
+    r["difficulty"] = "beginner"
+    r["elapsed_s"] = round(elapsed, 1)
+    print_summary(r, elapsed)
+    all_results.append(r)
+
+    # ---- CSP vs Tier1, Expert ----
+    t0 = time.time()
+    raw = run_matchup(N, "csp", "tier1", "expert")
+    elapsed = time.time() - t0
+    r = summarize(raw, "csp", "tier1")
+    r["difficulty"] = "expert"
+    r["elapsed_s"] = round(elapsed, 1)
+    print_summary(r, elapsed)
+    all_results.append(r)
+
+    # ---- CSP vs CSP, Intermediate ----
+    t0 = time.time()
+    raw = run_matchup(N, "csp", "csp", "intermediate")
+    elapsed = time.time() - t0
+    r = summarize(raw, "csp", "csp")
+    r["difficulty"] = "intermediate"
+    r["elapsed_s"] = round(elapsed, 1)
+    print_summary(r, elapsed)
+    all_results.append(r)
+
     with open(out, "w") as fh:
         json.dump(all_results, fh, indent=2)
     print(f"\nSaved -> {out}")
+
+    print_difficulty_comparison(all_results)
