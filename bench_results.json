@@ -26,5 +26,50 @@
     "avg_mines_hit_2": 1.0,
     "avg_turns": 8.6,
     "elapsed_s": 21.6
+  },
+  {
+    "matchup": "csp vs tier1",
+    "games": 50,
+    "win_rate_1_pct": 98.0,
+    "win_rate_2_pct": 0.0,
+    "tie_rate_pct": 2.0,
+    "avg_score_1": 7.36,
+    "avg_score_2": 2.0,
+    "avg_score_differential": 5.36,
+    "avg_mines_hit_1": 0.02,
+    "avg_mines_hit_2": 0.06,
+    "avg_turns": 17.0,
+    "difficulty": "beginner",
+    "elapsed_s": 12.2
+  },
+  {
+    "matchup": "csp vs tier1",
+    "games": 50,
+    "win_rate_1_pct": 86.0,
+    "win_rate_2_pct": 10.0,
+    "tie_rate_pct": 4.0,
+    "avg_score_1": 34.38,
+    "avg_score_2": 23.64,
+    "avg_score_differential": 10.74,
+    "avg_mines_hit_1": 0.06,
+    "avg_mines_hit_2": 0.86,
+    "avg_turns": 130.4,
+    "difficulty": "expert",
+    "elapsed_s": 3528.9
+  },
+  {
+    "matchup": "csp vs csp",
+    "games": 50,
+    "win_rate_1_pct": 76.0,
+    "win_rate_2_pct": 22.0,
+    "tie_rate_pct": 2.0,
+    "avg_score_1": 23.08,
+    "avg_score_2": 16.32,
+    "avg_score_differential": 6.76,
+    "avg_mines_hit_1": 0.04,
+    "avg_mines_hit_2": 0.02,
+    "avg_turns": 85.4,
+    "difficulty": "intermediate",
+    "elapsed_s": 207.2
   }
 ]
